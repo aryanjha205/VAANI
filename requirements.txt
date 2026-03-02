@@ -11,3 +11,4 @@ Pillow
 g4f
 imageio-ffmpeg
 gunicorn
+requests

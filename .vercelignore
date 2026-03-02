@@ -1,0 +1,9 @@
+venv/
+.env
+__pycache__/
+*.pyc
+.git/
+.vscode/
+node_modules/
+static/uploads/*
+!static/uploads/.gitkeep
