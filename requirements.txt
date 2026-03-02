@@ -1,0 +1,13 @@
+flask
+flask-socketio
+flask-bcrypt
+flask-login
+pymongo[srv]
+dnspython
+python-dotenv
+eventlet
+flask-mail
+Pillow
+g4f
+imageio-ffmpeg
+gunicorn

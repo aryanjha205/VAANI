@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="auth-container">
+    <div class="auth-card text-center">
+        <img src="{{ url_for('static', filename='img/icon-512.png') }}" alt="VAANI Logo" class="auth-logo mb-4">
+        <h1 class="auth-title mb-2" style="font-size: 2.5rem;">VAANI</h1>
+        <p class="text-muted mb-5 fw-bold">Connecting the Future through Voice & AI</p>
+
+        <div class="d-grid gap-3">
+            <a href="{{ url_for('login') }}" class="btn btn-auth btn-lg">Login to Account</a>
+            <a href="{{ url_for('signup') }}" class="btn btn-outline-auth btn-lg">Create New Profile</a>
+        </div>
+
+        <p class="mt-5 text-muted small">&copy; 2026 VAANI. All rights reserved.</p>
+    </div>
+</div>
+{% endblock %}
