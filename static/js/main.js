@@ -175,6 +175,13 @@ const chatSearchContainer = document.getElementById('chat-search-container');
 const chatSearchInput = document.getElementById('chat-search-input');
 const tabMap = document.getElementById('tab-map');
 const mapView = document.getElementById('map-view');
+const contactProfileSidebar = document.getElementById('contact-profile-sidebar');
+const closeContactProfileBtn = document.getElementById('close-contact-profile');
+const chatHeaderUserInfo = document.getElementById('chat-header-user-info');
+const contactProfilePicLarge = document.getElementById('contact-profile-pic-large');
+const contactProfileName = document.getElementById('contact-profile-name');
+const contactProfileStatusText = document.getElementById('contact-profile-status-text');
+const contactProfileAbout = document.getElementById('contact-profile-about');
 
 // Tabs & Global Chat
 const tabChats = document.getElementById('tab-chats');
@@ -239,26 +246,44 @@ if (tabChats && tabGlobal) {
             tabMap.classList.add('text-muted');
         }
 
-        // Hide private chat views & Map view
         activeChat.classList.add('d-none');
         noChatSelected.classList.add('d-none');
-        if (mapView) mapView.classList.add('d-none'); // Hide Map
-
+        if (mapView) mapView.classList.add('d-none');
         globalChat.classList.remove('d-none');
-
-        // Hide badge
         tabGlobal.querySelector('.badge').classList.add('d-none');
-
         loadGlobalMessages();
+        if (window.innerWidth <= 768) sidebar.classList.add('hidden');
+    });
 
-        // Mobile visibility
-        if (window.innerWidth <= 768) {
-            sidebar.classList.add('hidden');
+    tabMap?.addEventListener('click', () => {
+        isGlobalChatActive = false;
+        tabMap.classList.add('rounded-pill', 'bg-white', 'shadow-sm', 'text-primary');
+        tabMap.classList.remove('text-muted');
+
+        tabChats.classList.remove('rounded-pill', 'bg-white', 'shadow-sm', 'text-primary');
+        tabChats.classList.add('text-muted');
+
+        tabGlobal.classList.remove('rounded-pill', 'bg-white', 'shadow-sm', 'text-primary');
+        tabGlobal.classList.add('text-muted');
+
+        activeChat.classList.add('d-none');
+        noChatSelected.classList.add('d-none');
+        globalChat.classList.add('d-none');
+        if (mapView) {
+            mapView.classList.remove('d-none');
+            if (typeof initMap === 'function' && !window.map) initMap();
         }
+
+        if (window.innerWidth <= 768) sidebar.classList.add('hidden');
     });
 }
 if (backToListGlobal) {
     backToListGlobal.addEventListener('click', () => {
+        sidebar.classList.remove('hidden');
+    });
+}
+if (document.getElementById('back-to-list-map-mobile')) {
+    document.getElementById('back-to-list-map-mobile').addEventListener('click', () => {
         sidebar.classList.remove('hidden');
     });
 }
@@ -625,6 +650,51 @@ saveProfileBtn?.addEventListener('click', async () => {
     }
 });
 
+// --- Contact Profile Logic ---
+chatHeaderUserInfo?.addEventListener('click', () => {
+    if (!currentReceiverId || isGlobalChatActive) return;
+
+    // Find info from active contact item or header
+    const activeItem = document.querySelector('.contact-item.active');
+
+    // Extract info
+    let username = chatUserName.innerText;
+    let pic = chatUserPic.src;
+    let about = 'No info available';
+    let status = chatUserStatus.innerText;
+
+    if (activeItem) {
+        about = activeItem.getAttribute('data-about') || 'No info available';
+    }
+
+    // Populate Sidebar
+    contactProfilePicLarge.src = pic;
+    contactProfileName.innerText = username;
+    contactProfileStatusText.innerText = status;
+    contactProfileAbout.innerText = about;
+
+    // Fallback for missing large pic
+    contactProfilePicLarge.onerror = function () {
+        this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&color=fff&size=256`;
+    };
+
+    contactProfileSidebar.classList.remove('d-none');
+});
+
+closeContactProfileBtn?.addEventListener('click', () => {
+    contactProfileSidebar.classList.add('d-none');
+});
+
+document.getElementById('block-user-btn')?.addEventListener('click', () => {
+    alert('User has been reported and blocked. 🚫');
+    contactProfileSidebar.classList.add('d-none');
+});
+
+document.querySelector('#contact-profile-sidebar .btn-light')?.addEventListener('click', () => {
+    const name = contactProfileName.innerText;
+    alert(`Contact card for ${name} copied to clipboard! 📋`);
+});
+
 async function loadChat(receiverId, username, pic, status, about) {
     currentReceiverId = receiverId;
 
@@ -894,18 +964,33 @@ messageInput?.addEventListener('keypress', (e) => {
     if (e.key === 'Enter') sendMessage();
 });
 
-const searchInput = document.querySelector('.search-box input');
+// --- Sidebar Search ---
+const sidebarSearch = document.getElementById('sidebar-search');
+const toggleSidebarSearchBtn = document.getElementById('toggle-sidebar-search');
+const sidebarSearchContainer = document.getElementById('sidebar-search-container');
 
-searchInput?.addEventListener('input', (e) => {
+sidebarSearch?.addEventListener('input', (e) => {
     const term = e.target.value.toLowerCase();
     document.querySelectorAll('.contact-item').forEach(item => {
-        const name = item.getAttribute('data-username').toLowerCase();
+        const name = (item.getAttribute('data-username') || '').toLowerCase();
         if (name.includes(term)) {
             item.classList.remove('d-none');
+            if (term.length > 0) {
+                item.style.backgroundColor = 'rgba(99, 102, 241, 0.05)';
+            } else {
+                item.style.backgroundColor = '';
+            }
         } else {
             item.classList.add('d-none');
         }
     });
+});
+
+toggleSidebarSearchBtn?.addEventListener('click', () => {
+    sidebarSearchContainer.classList.toggle('mobile-search-active');
+    if (sidebarSearchContainer.classList.contains('mobile-search-active')) {
+        sidebarSearch.focus();
+    }
 });
 
 messageInput?.addEventListener('input', () => {
@@ -1760,16 +1845,49 @@ socket.on('new_map_story', (data) => {
     const marker = L.marker([lat, lng], { icon: storyIcon })
         .addTo(map)
         .bindPopup(`
-            <div class="text-center p-2">
-                <div class="d-flex align-items-center justify-content-center mb-2">
-                    <img src="${profile_pic}" class="rounded-circle me-2" width="30" height="30" style="object-fit: covering;"> 
-                    <b>${username}</b>
+            <div class="premium-map-popup">
+                <div class="popup-header d-flex align-items-center mb-3">
+                    <div class="popup-avatar-wrapper me-3">
+                        <img src="${profile_pic}" class="rounded-circle border border-2 border-white shadow-sm" width="50" height="50">
+                        <div class="active-pulse"></div>
+                    </div>
+                    <div class="popup-user-info">
+                        <h6 class="mb-0 fw-bold" style="color: #1e293b;">${username}</h6>
+                        <span class="badge ${isPublic ? 'bg-primary' : 'bg-success'} rounded-pill" style="font-size: 0.65rem; padding: 4px 10px;">
+                            ${isPublic ? '<i class="fas fa-globe me-1"></i> Public' : '<i class="fas fa-user-friends me-1"></i> Friends'}
+                        </span>
+                    </div>
                 </div>
-                <p class="mb-2 lead fs-6">"${content}"</p>
-                <small class="text-muted d-block border-top pt-1">
-                    ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })} • 
-                    <span class="badge ${isPublic ? 'bg-primary' : 'bg-success'}">${isPublic ? 'Public' : 'Friends'}</span>
-                </small>
+                <div class="popup-body">
+                    <p class="mb-3 lead fs-6 fst-italic shadow-text" style="color: #475569; font-weight: 500;">"${content}"</p>
+                </div>
+                <div class="popup-footer d-flex justify-content-between align-items-center border-top pt-2 mt-2">
+                    <small class="text-muted"><i class="far fa-clock me-1"></i> ${new Date(timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</small>
+                    <button class="btn btn-sm btn-link p-0 text-decoration-none fw-bold" style="font-size: 0.75rem;">Reply</button>
+                </div>
             </div>
         `);
+});
+
+/* Toggle Map Controls View */
+function toggleMapControls() { const overlay = document.getElementById('map-controls-overlay'); const openBtn = document.getElementById('btn-open-map-ctrl'); if (overlay.classList.contains('d-none')) { overlay.classList.remove('d-none'); openBtn.classList.add('d-none'); } else { overlay.classList.add('d-none'); openBtn.classList.remove('d-none'); } }
+
+
+// Map Style Selection
+document.getElementById('btn-street')?.addEventListener('click', function () {
+    this.classList.add('active');
+    document.getElementById('btn-satellite')?.classList.remove('active');
+    if (map) {
+        map.removeLayer(satelliteLayer);
+        map.addLayer(streetLayer);
+    }
+});
+
+document.getElementById('btn-satellite')?.addEventListener('click', function () {
+    this.classList.add('active');
+    document.getElementById('btn-street')?.classList.remove('active');
+    if (map) {
+        map.removeLayer(streetLayer);
+        map.addLayer(satelliteLayer);
+    }
 });

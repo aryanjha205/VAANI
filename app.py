@@ -272,7 +272,7 @@ def chat():
         contacts.append({
             'id': 'vaani_ai_bot',
             'username': 'VAANI (AI)',
-            'profile_pic': 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png',
+            'profile_pic': '/static/img/VAANI AI.png',
             'last_message': 'Always here to help! 🤖',
             'online': True,
             'pinned': True,
@@ -867,7 +867,7 @@ def handle_private_message(data):
                     'message': ai_reply,
                     'timestamp': ai_msg['timestamp'].isoformat(),
                     'sender_name': 'VAANI (AI)',
-                    'sender_pic': 'https://cdn-icons-png.flaticon.com/512/4712/4712035.png'
+                    'sender_pic': '/static/img/VAANI AI.png'
                 }
                 socketio.emit('new_private_message', reply_data, room=user_id)
                 # Hide AI typing
