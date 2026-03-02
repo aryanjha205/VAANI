@@ -29,30 +29,82 @@ login_manager.login_view = 'login'
 
 # Lazy Database Initialization
 _db_initialized = False
+class ConfigError(Exception):
+    pass
+
 def get_db():
     global _db_initialized
     if not _db_initialized:
         uri = app.config.get('MONGO_URI', '')
-        # Prevent trying to connect to localhost on Vercel (will always fail)
-        if os.environ.get('VERCEL') and 'localhost' in uri:
-            print("CRITICAL: MONGO_URI is not set in Vercel Environment Variables!")
-            return None
+        # Detect Vercel environment issues
+        is_vercel = os.environ.get('VERCEL') or os.environ.get('VERCEL_URL')
+        if is_vercel and ('localhost' in uri or not uri):
+            raise ConfigError("MONGO_URI environment variable is missing in Vercel Settings.")
             
         try:
             Database.initialize(uri)
             _db_initialized = True
         except Exception as e:
-            print(f"DATABASE INITIALIZATION ERROR: {e}")
+            # On Vercel, we want to know EXACTLY what's wrong with the connection
+            if is_vercel:
+                raise ConfigError(f"Database Connection Error: {str(e)}")
+            else:
+                print(f"DB Error: {e}")
     return Database.db
 
 @login_manager.user_loader
 def load_user(user_id):
     try:
         db = get_db()
-        if db is None: return None
         return User.find_by_id(user_id)
     except Exception:
         return None
+
+# --- Vercel Diagnostic Tool ---
+@app.errorhandler(ConfigError)
+def handle_config_error(e):
+    return render_template_string("""
+        <!DOCTYPE html>
+        <html lang="en">
+        <head>
+            <meta charset="UTF-8"><title>VAANI - Setup Required</title>
+            <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+            <style>
+                body { background: #0f172a; color: white; display: flex; align-items: center; justify-content: center; min-height: 100vh; font-family: 'Outfit', sans-serif; }
+                .card { background: rgba(30, 41, 59, 0.7); border: 1px solid rgba(255,255,255,0.1); backdrop-filter: blur(10px); border-radius: 20px; box-shadow: 0 25px 50px -12px rgba(0,0,0,0.5); }
+                .code { background: #000; color: #10b981; padding: 15px; border-radius: 10px; font-family: monospace; white-space: pre-wrap; word-break: break-all; }
+                .btn-vercel { background: white; color: black; font-weight: bold; border-radius: 50px; }
+            </style>
+        </head>
+        <body>
+            <div class="container" style="max-width: 600px;">
+                <div class="card p-5 text-center">
+                    <h2 class="mb-4">🚀 Almost There!</h2>
+                    <p class="text-muted mb-4 text-start">VAANI is deployed, but it can't find your <strong>MongoDB Atlas Cluster</strong>. Vercel needs you to add an Environment Variable.</p>
+                    <div class="alert alert-danger text-start"><strong>Error:</strong> {{ error_msg }}</div>
+                    
+                    <h5 class="text-start mt-4 mb-3">Fix it in 3 steps:</h5>
+                    <ol class="text-start mb-4">
+                        <li>Go to <strong>Vercel Dashboard</strong> > <strong>Settings</strong> > <strong>Environment Variables</strong>.</li>
+                        <li>Add Key: <code>MONGO_URI</code></li>
+                        <li>Add Value: <small>(Paste your connection string from MongoDB Atlas)</small></li>
+                    </ol>
+                    <div class="d-grid gap-2">
+                        <a href="https://vercel.com/dashboard" target="_blank" class="btn btn-vercel btn-lg">Open Vercel Dashboard</a>
+                        <button onclick="location.reload()" class="btn btn-outline-light rounded-pill">I've added it, Refresh!</button>
+                    </div>
+                </div>
+            </div>
+        </body>
+        </html>
+    """, error_msg=str(e)), 500
+
+@app.before_request
+def ensure_db():
+    try:
+        get_db()
+    except ConfigError as e:
+        return handle_config_error(e)
 
 # --- Routes ---
 
