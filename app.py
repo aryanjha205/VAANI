@@ -12,40 +12,71 @@ from bson import ObjectId
 from datetime import datetime, timezone, timedelta
 from werkzeug.utils import secure_filename
 import time
-from bot import get_ai_response
-from voice_changer import apply_voice_filter
+# Delaying heavy imports to prevent startup crashes on serverless
+# from bot import get_ai_response
+# from voice_changer import apply_voice_filter
 
 app = Flask(__name__)
 app.config.from_object(Config)
 application = app
 
 # Initialize Extensions
-socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
+socketio = SocketIO(app, cors_allowed_origins="*")
 bcrypt = Bcrypt(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
-# Initialize Database
-try:
-    Database.initialize(app.config['MONGO_URI'])
-except Exception as e:
-    print(f"DATABASE INITIALIZATION ERROR: {e}")
+# Lazy Database Initialization
+_db_initialized = False
+def get_db():
+    global _db_initialized
+    if not _db_initialized:
+        try:
+            Database.initialize(app.config['MONGO_URI'])
+            _db_initialized = True
+        except Exception as e:
+            print(f"DATABASE INITIALIZATION ERROR: {e}")
+    return Database.db
 
 @login_manager.user_loader
 def load_user(user_id):
     try:
+        db = get_db()
+        if db is None: return None
         return User.find_by_id(user_id)
     except Exception:
         return None
+
+# --- Custom Error Handler for Vercel Debugging ---
+@app.errorhandler(500)
+def internal_error(error):
+    import traceback
+    return f"VAANI System Error: {str(error)}<br><pre>{traceback.format_exc()}</pre>", 500
+
+@app.before_request
+def ensure_db():
+    get_db()
 
 # --- Routes ---
 
 @app.route('/')
 def index():
-    if current_user.is_authenticated:
-        return redirect(url_for('chat'))
+    try:
+        if current_user and current_user.is_authenticated:
+            return redirect(url_for('chat'))
+    except Exception:
+        pass
     return render_template('index.html')
+
+@app.route('/health')
+def health():
+    db_status = "Connected" if Database.db is not None else "Disconnected"
+    return jsonify({
+        "status": "healthy",
+        "database": db_status,
+        "environment": "vercel" if os.environ.get('VERCEL') else "unknown"
+    })
 
 @app.route('/signup', methods=['GET', 'POST'])
 def signup():
@@ -354,6 +385,7 @@ def upload_file():
         try:
             voice_filter = request.form.get('voice_filter')
             if voice_filter and voice_filter != 'none':
+                from voice_changer import apply_voice_filter
                 print(f"DEBUG: Applying voice filter '{voice_filter}' to {filename}...")
                 filtered_path = apply_voice_filter(file_path, voice_filter)
                 if filtered_path and os.path.exists(filtered_path):
@@ -749,6 +781,7 @@ def handle_private_message(data):
             
             def process_ai_reply(user_msg_text, user_id):
                 try:
+                    from bot import get_ai_response
                     ai_reply = get_ai_response(user_msg_text)
                 except Exception as e:
                     print(f"AI ERROR: {e}")
