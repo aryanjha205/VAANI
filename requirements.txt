@@ -7,6 +7,5 @@ dnspython
 python-dotenv
 flask-mail
 Pillow
-imageio-ffmpeg
 requests
 simple-websocket
