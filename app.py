@@ -267,7 +267,7 @@ def chat():
     
     # Filter by connections
     connections = user_data.get('connections') or []
-    connection_ids = [ObjectId(c_id) for c_id in connections]
+    connection_ids = [ObjectId(c_id) for c_id in connections if c_id and c_id != 'null']
     
     users = Database.db.users.find({'_id': {'$in': connection_ids}})
     contacts = []
@@ -576,7 +576,8 @@ def get_requests():
     if not req_ids:
         return jsonify([])
         
-    users = Database.db.users.find({'_id': {'$in': [ObjectId(rid) for rid in req_ids]}})
+    valid_req_ids = [ObjectId(rid) for rid in req_ids if rid and rid != 'null']
+    users = Database.db.users.find({'_id': {'$in': valid_req_ids}})
     results = []
     for u in users:
         results.append({
@@ -1196,7 +1197,7 @@ def handle_request_active_locations():
     if not connections:
         return
         
-    connection_ids = [ObjectId(uid) for uid in connections]
+    connection_ids = [ObjectId(uid) for uid in connections if uid and uid != 'null']
     
     # Find friends who are online AND sharing
     active_friends = Database.db.users.find({
