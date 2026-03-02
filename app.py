@@ -98,6 +98,11 @@ def handle_config_error(e):
         </html>
     """, error_msg=str(e)), 500
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    import traceback
+    return f"<h1>Internal Error (Diagnostics)</h1><p>A server error occurred. Please screenshot this and send it back to the assistant:</p><pre style='background:#f4f4f4;padding:15px;color:red;'>{traceback.format_exc()}</pre>", 500
+
 @app.before_request
 def ensure_db():
     try:
@@ -255,10 +260,13 @@ def logout():
 @login_required
 def chat():
     user_data = Database.db.users.find_one({'_id': ObjectId(current_user.id)})
-    pinned_ids = user_data.get('pinned_contacts', [])
+    if not user_data:
+        return redirect(url_for('logout'))
+        
+    pinned_ids = user_data.get('pinned_contacts') or []
     
     # Filter by connections
-    connections = user_data.get('connections', [])
+    connections = user_data.get('connections') or []
     connection_ids = [ObjectId(c_id) for c_id in connections]
     
     users = Database.db.users.find({'_id': {'$in': connection_ids}})
@@ -279,7 +287,7 @@ def chat():
         })
     
     # Also fetch requests count for badge
-    requests_count = len(user_data.get('requests_received', []))
+    requests_count = len(user_data.get('requests_received') or [])
 
     for u in users:
         u_id = str(u['_id'])
