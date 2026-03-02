@@ -32,8 +32,14 @@ _db_initialized = False
 def get_db():
     global _db_initialized
     if not _db_initialized:
+        uri = app.config.get('MONGO_URI', '')
+        # Prevent trying to connect to localhost on Vercel (will always fail)
+        if os.environ.get('VERCEL') and 'localhost' in uri:
+            print("CRITICAL: MONGO_URI is not set in Vercel Environment Variables!")
+            return None
+            
         try:
-            Database.initialize(app.config['MONGO_URI'])
+            Database.initialize(uri)
             _db_initialized = True
         except Exception as e:
             print(f"DATABASE INITIALIZATION ERROR: {e}")
@@ -47,16 +53,6 @@ def load_user(user_id):
         return User.find_by_id(user_id)
     except Exception:
         return None
-
-# --- Custom Error Handler for Vercel Debugging ---
-@app.errorhandler(500)
-def internal_error(error):
-    import traceback
-    return f"VAANI System Error: {str(error)}<br><pre>{traceback.format_exc()}</pre>", 500
-
-@app.before_request
-def ensure_db():
-    get_db()
 
 # --- Routes ---
 
