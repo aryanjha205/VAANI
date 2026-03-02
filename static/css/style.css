@@ -967,10 +967,33 @@ body {
 
 /* Profile Sidebar */
 .profile-sidebar {
-    background: rgba(255, 255, 255, 0.9);
-    backdrop-filter: blur(10px);
+    background: white;
     box-shadow: 10px 0 20px rgba(0, 0, 0, 0.05);
-    z-index: 100 !important;
+    z-index: 500;
+    transition: transform 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+@media (max-width: 768px) {
+    .profile-sidebar {
+        position: fixed !important;
+        top: 0;
+        left: 0;
+        width: 100% !important;
+        height: 100% !important;
+        z-index: 2100 !important;
+        /* Above everything including nav */
+        transform: none !important;
+        /* Don't hide if .sidebar class is tagged as hidden */
+    }
+
+    .profile-content {
+        padding: 20px !important;
+    }
+
+    #my-profile-pic {
+        width: 150px !important;
+        height: 150px !important;
+    }
 }
 
 /* Dark Theme */
@@ -1173,25 +1196,52 @@ body {
     opacity: 1;
 }
 
+.profile-info-section label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    font-weight: 800;
+    margin-bottom: 8px;
+    display: block;
+    color: var(--primary-color);
+}
+
+.dark-theme .profile-info-section label {
+    color: var(--dt-cyan);
+}
+
 .profile-editable-input {
     border: none;
     background: transparent;
     width: 100%;
-    padding: 5px 0;
-    font-size: 1.1rem;
+    padding: 10px 0;
+    font-size: 1.15rem;
     outline: none;
+    font-weight: 600;
+    transition: all 0.3s ease;
 }
 
 .profile-editable-input:focus {
     border-bottom: 2px solid var(--primary-color);
 }
 
+.dark-theme .profile-editable-input {
+    color: white;
+}
+
+.profile-sidebar .sidebar-header {
+    height: 70px;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.1);
+}
+
 .clickable {
     cursor: pointer;
+    transition: transform 0.2s, color 0.2s;
 }
 
 .clickable:hover {
     color: var(--primary-color) !important;
+    transform: scale(1.1);
 }
 
 /* Pin Button */

@@ -6,7 +6,8 @@
     <aside class="sidebar">
         <header class="sidebar-header">
             <div class="d-flex align-items-center">
-                <img src="{{ current_user.profile_pic }}" alt="Profile" class="user-avatar ripple">
+                <img src="{{ current_user.profile_pic }}" alt="{{ current_user.username }}" class="user-avatar ripple"
+                    onerror="this.src='/static/img/icon-192.png'">
                 <h5 class="ms-3 mb-0" style="font-weight: 600;">{{ current_user.username }}</h5>
                 <span id="global-online-count" class="badge bg-success ms-2 rounded-pill small"
                     style="font-size: 0.65rem;">0 Online</span>
@@ -61,7 +62,8 @@
             <div class="contact-item" data-id="{{ contact.id }}" data-username="{{ contact.username }}"
                 data-pic="{{ contact.profile_pic }}" data-about="{{ contact.about }}">
                 <div class="position-relative">
-                    <img src="{{ contact.profile_pic }}" alt="{{ contact.username }}" class="user-avatar">
+                    <img src="{{ contact.profile_pic }}" alt="{{ contact.username }}" class="user-avatar"
+                        onerror="this.src='https://ui-avatars.com/api/?name='+encodeURIComponent('{{ contact.username }}')+'&background=random'">
                     <span
                         class="status-indicator position-absolute bottom-0 end-0 border border-white {{ 'status-online' if contact.online else 'status-offline' }}"
                         id="status-{{ contact.id }}"></span>
@@ -92,8 +94,9 @@
 
         <div class="profile-content p-4 text-center">
             <div class="profile-pic-container position-relative mb-4">
-                <img src="{{ current_user.profile_pic }}" id="my-profile-pic" class="rounded-circle shadow-sm"
-                    style="width: 200px; height: 200px; object-fit: cover;">
+                <img src="{{ current_user.profile_pic }}" id="my-profile-pic" alt="{{ current_user.username }}"
+                    class="rounded-circle shadow-sm" style="width: 200px; height: 200px; object-fit: cover;"
+                    onerror="this.src='https://ui-avatars.com/api/?name='+encodeURIComponent('{{ current_user.username }}')+'&background=random'">
                 <label for="profile-pic-input" class="profile-pic-overlay">
                     <i class="fas fa-camera"></i>
                     <span>CHANGE PROFILE PHOTO</span>

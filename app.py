@@ -356,14 +356,30 @@ def update_profile_pic():
     if file.filename == '':
         return jsonify({'success': False, 'message': 'No selected file'}), 400
     
-    if file:
-        filename = secure_filename(f"profile_{current_user.id}_{datetime.now(timezone.utc).timestamp()}.png")
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
+    try:
+        from PIL import Image
+        import io
+        import base64
         
-        pic_url = url_for('static', filename=f'uploads/{filename}')
+        # Open and resize
+        img = Image.open(file.stream)
+        # Convert to RGB if it's RGBA (to save space as JPEG or just keep as PNG)
+        if img.mode in ("RGBA", "P"):
+            img = img.convert("RGB")
+        
+        img.thumbnail((128, 128))
+        
+        # Save to buffer
+        buffer = io.BytesIO()
+        img.save(buffer, format="JPEG", quality=85)
+        img_str = base64.b64encode(buffer.getvalue()).decode()
+        pic_url = f"data:image/jpeg;base64,{img_str}"
+        
         Database.db.users.update_one({'_id': ObjectId(current_user.id)}, {'$set': {'profile_pic': pic_url}})
         return jsonify({'success': True, 'profile_pic': pic_url})
+    except Exception as e:
+        print(f"PROFILE PIC ERROR: {e}")
+        return jsonify({'success': False, 'message': f"Failed to process image: {str(e)}"}), 500
 
 @app.route('/get_messages/<receiver_id>')
 @login_required
@@ -406,45 +422,44 @@ def clear_chat(receiver_id):
 @app.route('/upload', methods=['POST'])
 @login_required
 def upload_file():
-    features = Database.db.config.find_one({'_id': 'features'}) or {}
-    if not features.get('file_uploads', True):
-        return jsonify({'error': 'File uploads are currently disabled by admin.'}), 403
-
     if 'file' not in request.files:
         return jsonify({'error': 'No file part'}), 400
     file = request.files['file']
     if file.filename == '':
         return jsonify({'error': 'No selected file'}), 400
     
-    if file:
-        original_filename = file.filename
-        if not original_filename:
-            original_filename = 'voice_note.wav'
-            
-        filename = secure_filename(f"{datetime.now(timezone.utc).timestamp()}_{original_filename}")
-        # If secure_filename strips everything (e.g. if filename was just 'blob'), ensure extension
-        if not filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif', '.wav', '.mp3', '.mp4', '.pdf', '.txt', '.doc', '.docx')):
-             filename += '.wav' # Default to wav for blobs if unsure
-             
-        file_path = os.path.join(app.config['UPLOAD_FOLDER'], filename)
-        file.save(file_path)
-
-        # Apply Voice Filter if requested
-        try:
-            voice_filter = request.form.get('voice_filter')
-            if voice_filter and voice_filter != 'none':
-                from voice_changer import apply_voice_filter
-                print(f"DEBUG: Applying voice filter '{voice_filter}' to {filename}...")
-                filtered_path = apply_voice_filter(file_path, voice_filter)
-                if filtered_path and os.path.exists(filtered_path):
-                    filename = os.path.basename(filtered_path)
-                    print(f"DEBUG: Filter applied successfully. New filename: {filename}")
-                else:
-                    print(f"DEBUG: Filter failed or returned invalid path. Falling back to original.")
-        except Exception as e:
-            print(f"DEBUG: VOICE FILTER CRASH: {e}")
-
-        return jsonify({'url': url_for('static', filename=f'uploads/{filename}'), 'filename': filename})
+    try:
+        filename = secure_filename(file.filename)
+        # Helper for image to base64
+        if filename.lower().endswith(('.png', '.jpg', '.jpeg', '.gif')):
+            from PIL import Image
+            import io
+            import base64
+            img = Image.open(file.stream)
+            if img.mode in ("RGBA", "P"):
+                img = img.convert("RGB")
+            # Downscale slightly for chat performance if very large
+            img.thumbnail((800, 800))
+            buffer = io.BytesIO()
+            img.save(buffer, format="JPEG", quality=75)
+            img_str = base64.b64encode(buffer.getvalue()).decode()
+            return jsonify({'url': f"data:image/jpeg;base64,{img_str}", 'filename': filename})
+        # Handle small audio blobs from recorder (Base64 as well)
+        elif filename.lower().endswith(('.wav', '.mp3', '.blob')):
+             import base64
+             audio_data = file.read()
+             if len(audio_data) > 2 * 1024 * 1024: # 2MB limit for base64
+                 return jsonify({'error': 'Voice note too large for serverless memory.'}), 400
+             audio_str = base64.b64encode(audio_data).decode()
+             # Guess mime
+             mime = "audio/wav"
+             if filename.lower().endswith('.mp3'): mime = "audio/mpeg"
+             return jsonify({'url': f"data:{mime};base64,{audio_str}", 'filename': filename})
+        else:
+             return jsonify({'error': 'Only images and voice notes are supported on this environment currently.'}), 400
+    except Exception as e:
+        print(f"UPLOAD ERROR: {e}")
+        return jsonify({'error': f"Failed to upload: {str(e)}"}), 500
 
 @app.route('/search_users')
 @login_required

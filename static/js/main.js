@@ -652,6 +652,9 @@ async function loadChat(receiverId, username, pic, status, about) {
     // Set Header
     chatUserName.innerText = username;
     chatUserPic.src = pic;
+    chatUserPic.onerror = function () {
+        this.src = `https://ui-avatars.com/api/?name=${encodeURIComponent(username)}&background=random&color=fff`;
+    };
     chatUserStatus.innerText = status === 'online' ? 'online' : (about || 'offline');
 
     // Notify server that I read these messages
