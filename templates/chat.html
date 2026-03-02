@@ -193,7 +193,7 @@
                 <button class="btn btn-light rounded-pill w-100 mb-2 border">
                     <i class="fas fa-share-alt me-2"></i>Share Contact
                 </button>
-                <button class="btn btn-outline-danger rounded-pill w-100">
+                <button class="btn btn-outline-danger rounded-pill w-100" id="block-user-btn">
                     <i class="fas fa-ban me-2"></i>Block User
                 </button>
             </div>
@@ -263,25 +263,6 @@
 
                 <button id="send-btn" class="action-btn send-btn d-none"><i class="fas fa-paper-plane"></i></button>
 
-                <div class="dropup">
-                    <button id="voice-filter-btn" class="action-btn" data-bs-toggle="dropdown" title="Voice Filters">
-                        <i class="fas fa-magic"></i>
-                    </button>
-                    <ul class="dropdown-menu voice-filter-menu p-2 shadow-lg border-0"
-                        style="border-radius: 15px; background: rgba(255,255,255,0.95); backdrop-filter: blur(10px);">
-                        <li class="dropdown-header text-primary fw-bold">VOICE CHATTING</li>
-                        <li><a class="dropdown-item rounded-pill active" href="#" data-voice="none">Normal Voice</a>
-                        </li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="girl">Girl Voice</a></li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="female">Female Voice</a></li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="robot">Robot Voice</a></li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="echo">DJ Echo</a></li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="cartoon">Cartoon Voice</a></li>
-                        <li><a class="dropdown-item rounded-pill" href="#" data-voice="celebrity">Celebrity Tone</a>
-                        </li>
-                    </ul>
-                </div>
-
                 <button id="mic-btn" class="action-btn"><i class="fas fa-microphone"></i></button>
             </footer>
         </div>
@@ -341,15 +322,20 @@
 
         <!-- Map View -->
         <div id="map-view" class="d-none h-100 position-relative">
-            <!-- Mobile Header for Map -->
-            <header class="chat-header d-md-none position-absolute w-100"
-                style="top: 0; left: 0; right: 0; z-index: 1000; height: 60px;">
-                <button class="back-btn text-white me-2" id="back-to-list-map-mobile"><i
+            <!-- Header for Map -->
+            <header class="chat-header position-absolute w-100"
+                style="top: 0; left: 0; right: 0; z-index: 1000; height: 60px; background: linear-gradient(to bottom, rgba(0,0,0,0.6), transparent); border-bottom: none;">
+                <button class="back-btn text-white me-2 d-md-none" id="back-to-list-map-mobile"><i
                         class="fas fa-arrow-left"></i></button>
                 <div class="flex-grow-1">
                     <h6 class="mb-0 text-white">Live Map</h6>
                 </div>
-                <div class="header-actions">
+                <div class="header-actions d-flex align-items-center">
+                    <button class="btn-open-map-controls action-btn text-white me-2" id="btn-open-map-ctrl"
+                        onclick="toggleMapControls()"
+                        style="position: static; background: rgba(0,0,0,0.2); border-radius: 12px; padding: 6px 12px; height: auto; width: auto;">
+                        <i class="fas fa-cog"></i>
+                    </button>
                     <div class="dropdown d-inline-block">
                         <button class="action-btn text-white" type="button" data-bs-toggle="dropdown"
                             style="background: rgba(0,0,0,0.2); border-radius: 12px; padding: 6px 12px; margin-right: 15px;">
@@ -430,9 +416,7 @@
                 </div>
             </div>
 
-            <button class="btn-open-map-controls d-none" id="btn-open-map-ctrl" onclick="toggleMapControls()">
-                <i class="fas fa-cog"></i>
-            </button>
+            <!-- Button moved to header -->
 
             <!-- Locate Me Button -->
             <button class="map-action-btn locate-btn shadow-lg" id="locate-me-btn" title="Locate Me">

@@ -38,6 +38,7 @@ class User(UserMixin):
         self.requests_received = user_data.get('requests_received', [])
         self.requests_sent = user_data.get('requests_sent', [])
         self.online = user_data.get('online', False)
+        self.blocked_users = user_data.get('blocked_users', [])
 
     @staticmethod
     def find_by_username(username):

@@ -14,7 +14,6 @@ from werkzeug.utils import secure_filename
 import time
 # Delaying heavy imports to prevent startup crashes on serverless
 # from bot import get_ai_response
-# from voice_changer import apply_voice_filter
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -485,6 +484,8 @@ def search_users():
         status = 'none'
         if u_id in my_connections:
             status = 'connected'
+        elif u_id in me.get('blocked_users', []):
+            status = 'blocked'
         elif u_id in my_sent:
             status = 'pending_sent'
         elif u_id in my_received:
@@ -795,12 +796,67 @@ def recent_activity():
 
 # --- SocketIO Events ---
 
+@app.route('/block_user', methods=['POST'])
+@login_required
+def block_user():
+    target_id = request.form.get('target_id')
+    if not target_id:
+        return jsonify({'success': False, 'message': 'Target ID required'}), 400
+    
+    # 1. Add to blocked list
+    Database.db.users.update_one(
+        {'_id': ObjectId(current_user.id)},
+        {'$addToSet': {'blocked_users': target_id}}
+    )
+    
+    # 2. Remove from connections (for both)
+    Database.db.users.update_one(
+        {'_id': ObjectId(current_user.id)},
+        {'$pull': {'connections': target_id}}
+    )
+    Database.db.users.update_one(
+        {'_id': ObjectId(target_id)},
+        {'$pull': {'connections': current_user.id}}
+    )
+    
+    return jsonify({'success': True, 'message': 'User blocked'})
+
+@app.route('/unblock_user', methods=['POST'])
+@login_required
+def unblock_user():
+    target_id = request.form.get('target_id')
+    if not target_id:
+        return jsonify({'success': False, 'message': 'Target ID required'}), 400
+    
+    # Remove from blocked list
+    Database.db.users.update_one(
+        {'_id': ObjectId(current_user.id)},
+        {'$pull': {'blocked_users': target_id}}
+    )
+    
+    return jsonify({'success': True, 'message': 'User unblocked'})
+
 @socketio.on('private_message')
 def handle_private_message(data):
     receiver_id = data.get('receiver_id')
     message_text = data.get('message')
     
     if not receiver_id or (not message_text and not data.get('file_url')): return
+
+    # Check for blocking
+    me = Database.db.users.find_one({'_id': ObjectId(current_user.id)})
+    them = Database.db.users.find_one({'_id': ObjectId(receiver_id)})
+    
+    if not them: return # Invalid target
+    
+    # Case: I blocked them OR They blocked me
+    blocked_by_me = receiver_id in me.get('blocked_users', [])
+    blocked_by_them = current_user.id in them.get('blocked_users', [])
+    
+    if blocked_by_me or blocked_by_them:
+        # Silently fail or send error back to user
+        emit('error', {'message': 'Message could not be sent. You may have been blocked or you have blocked this user.'})
+        return
 
     # 1. Handle VAANI AI Bot
     if receiver_id == 'vaani_ai_bot':

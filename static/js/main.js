@@ -99,8 +99,7 @@ const currentUsername = document.getElementById('current-username')?.value;
 let typingTimeout = null;
 let darkMode = false;
 let isRecording = false;
-let selectedVoiceFilter = 'none';
-const recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
+let recognition = window.webkitSpeechRecognition ? new webkitSpeechRecognition() : null;
 
 function formatChatTime(isoString, type = 'short') {
     if (!isoString) return '';
@@ -461,6 +460,10 @@ socket.on('messages_read', (data) => {
     }
 });
 
+socket.on('error', (data) => {
+    alert(data.message || 'An error occurred.');
+});
+
 socket.on('update_last_seen', (data) => {
     if (data.user_id === currentReceiverId) {
         chatUserStatus.innerText = `last seen ${formatChatTime(data.last_seen, 'long')}`;
@@ -685,9 +688,29 @@ closeContactProfileBtn?.addEventListener('click', () => {
     contactProfileSidebar.classList.add('d-none');
 });
 
-document.getElementById('block-user-btn')?.addEventListener('click', () => {
-    alert('User has been reported and blocked. 🚫');
-    contactProfileSidebar.classList.add('d-none');
+document.getElementById('block-user-btn')?.addEventListener('click', async () => {
+    if (!currentReceiverId) return;
+
+    if (confirm('Are you sure you want to block this user? You will no longer be able to message each other.')) {
+        const formData = new FormData();
+        formData.append('target_id', currentReceiverId);
+
+        try {
+            const response = await fetch('/block_user', {
+                method: 'POST',
+                body: formData
+            });
+            const data = await response.json();
+            if (data.success) {
+                alert('User has been blocked. 🚫');
+                contactProfileSidebar.classList.add('d-none');
+                location.reload(); // Refresh to update connection list
+            }
+        } catch (err) {
+            console.error('Blocking failed:', err);
+            alert('Failed to block user.');
+        }
+    }
 });
 
 document.querySelector('#contact-profile-sidebar .btn-light')?.addEventListener('click', () => {
@@ -1146,7 +1169,6 @@ micBtn?.addEventListener('click', async () => {
                 // Upload
                 const formData = new FormData();
                 formData.append('file', audioBlob, `voice_note_${Date.now()}.wav`);
-                formData.append('voice_filter', selectedVoiceFilter);
 
                 try {
                     const response = await fetch('/upload', { method: 'POST', body: formData });
@@ -1187,25 +1209,6 @@ micBtn?.addEventListener('click', async () => {
         micBtn.innerHTML = '<i class="fas fa-microphone"></i>';
         micBtn.classList.remove('text-danger');
     }
-});
-
-// Voice Filter Menu Listeners
-document.querySelectorAll('.voice-filter-menu .dropdown-item').forEach(item => {
-    item.addEventListener('click', (e) => {
-        e.preventDefault();
-        document.querySelectorAll('.voice-filter-menu .dropdown-item').forEach(i => i.classList.remove('active'));
-        item.classList.add('active');
-        selectedVoiceFilter = item.getAttribute('data-voice');
-
-        const icon = document.getElementById('voice-filter-btn').querySelector('i');
-        if (selectedVoiceFilter !== 'none') {
-            document.getElementById('voice-filter-btn').classList.add('text-primary');
-            icon.className = 'fas fa-magic animate__animated animate__pulse infinite';
-        } else {
-            document.getElementById('voice-filter-btn').classList.remove('text-primary');
-            icon.className = 'fas fa-magic';
-        }
-    });
 });
 
 fileInput?.addEventListener('change', () => {
@@ -1318,6 +1321,8 @@ if (userSearchInput) {
                 let actionBtn = '';
                 if (user.status === 'connected') {
                     actionBtn = '<span class="badge bg-success rounded-pill px-3 py-2"><i class="fas fa-check-circle me-1"></i>Connected</span>';
+                } else if (user.status === 'blocked') {
+                    actionBtn = `<button class="btn btn-sm btn-outline-danger rounded-pill px-4 unblock-btn fw-bold shadow-sm" data-id="${user.id}"><i class="fas fa-unlock me-1"></i>Unblock</button>`;
                 } else if (user.status === 'pending_sent') {
                     actionBtn = '<span class="badge bg-secondary rounded-pill px-3 py-2"><i class="fas fa-clock me-1"></i>Pending</span>';
                 } else if (user.status === 'pending_received') {
@@ -1350,6 +1355,26 @@ if (userSearchInput) {
                         const data = await res.json();
                         if (data.success) {
                             e.target.replaceWith(document.createRange().createContextualFragment('<span class="badge bg-secondary">Pending</span>'));
+                        }
+                    } catch (err) { console.error(err); }
+                });
+            });
+
+            document.querySelectorAll('.unblock-btn').forEach(btn => {
+                btn.addEventListener('click', async (e) => {
+                    const targetId = e.target.getAttribute('data-id');
+                    const formData = new FormData();
+                    formData.append('target_id', targetId);
+
+                    try {
+                        const res = await fetch('/unblock_user', { method: 'POST', body: formData });
+                        const data = await res.json();
+                        if (data.success) {
+                            alert('User has been unblocked! 🔓');
+                            // Replace with Connect button
+                            e.target.replaceWith(document.createRange().createContextualFragment(`<button class="btn btn-sm btn-primary rounded-pill px-4 connect-btn fw-bold" data-id="${targetId}">Connect</button>`));
+                            // Add listener back to the new button (ideally use delegation, but for now we re-init or just reload)
+                            location.reload();
                         }
                     } catch (err) { console.error(err); }
                 });
