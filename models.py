@@ -19,10 +19,13 @@ class Database:
         except Exception:
             Database.db = Database.client['vaani']
         
-        # Ensure Indexes for Speed
-        Database.db.messages.create_index([('sender_id', 1), ('receiver_id', 1), ('timestamp', -1)])
-        Database.db.users.create_index('username', unique=True)
-        Database.db.users.create_index('email', unique=True)
+        # Ensure Indexes for Speed (non-critical, wrapped)
+        try:
+            Database.db.messages.create_index([('sender_id', 1), ('receiver_id', 1), ('timestamp', -1)])
+            Database.db.users.create_index('username', unique=True)
+            Database.db.users.create_index('email', unique=True)
+        except Exception as e:
+            print(f"DATABASE INDEX ERROR: {e}")
 
 class User(UserMixin):
     def __init__(self, user_data):

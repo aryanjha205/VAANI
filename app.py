@@ -17,20 +17,27 @@ from voice_changer import apply_voice_filter
 
 app = Flask(__name__)
 app.config.from_object(Config)
+application = app
 
 # Initialize Extensions
-socketio = SocketIO(app, cors_allowed_origins="*")
+socketio = SocketIO(app, cors_allowed_origins="*", async_mode='threading')
 bcrypt = Bcrypt(app)
 mail = Mail(app)
 login_manager = LoginManager(app)
 login_manager.login_view = 'login'
 
 # Initialize Database
-Database.initialize(app.config['MONGO_URI'])
+try:
+    Database.initialize(app.config['MONGO_URI'])
+except Exception as e:
+    print(f"DATABASE INITIALIZATION ERROR: {e}")
 
 @login_manager.user_loader
 def load_user(user_id):
-    return User.find_by_id(user_id)
+    try:
+        return User.find_by_id(user_id)
+    except Exception:
+        return None
 
 # --- Routes ---
 
